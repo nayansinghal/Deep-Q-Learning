@@ -15,6 +15,7 @@ class DQNAgent:
 		self.model = ModelBuilder(state_size, action_size, 0.001)
 		self.model.create_model()
 		self.model.compile_model()
+		self.model.model.summary()
 		self.model.load(model_path)
 
 	def remember(self, state, action, reward, next_state, done):
@@ -23,17 +24,25 @@ class DQNAgent:
 	def get_Act(self, state):
 		if np.random.rand() <= self.epsilon:
 			return random.randrange(self.action_size)
+		state = np.expand_dims(state, axis=0)
 		return np.argmax(self.model.model.predict(state)[0])
 
 	def replay(self, batch_size):
 		minibatch = random.sample(self.memory, batch_size)
 
-		for state, action, reward, next_state, done in minibatch:
-			target = reward
+		state, action, reward, next_state, done = zip(*minibatch)
+		state = np.reshape(state, (batch_size, 1, 4))
+		next_state = np.reshape(next_state, (batch_size, 1, 4))
+
+		target = reward + self.gamma * np.amax(self.model.model.predict(next_state), axis=1)
+		target_f = self.model.model.predict(state)
+		
+		for idx, (target_, target, R, action, done) in enumerate(zip(target_f, target, reward, action, done)):
 			if not done:
-				target = reward + self.gamma * np.amax(self.model.model.predict(next_state)[0])
-			target_f = self.model.model.predict(state)
-			target_f[0][action] = target
-			self.model.model.fit(state, target_f, verbose=0, epochs=1)
+				target_[action] = target.astype('float32')
+			else:
+				target_[action] = R
+
+		self.model.model.fit(state, target_f, verbose=0, epochs=1)
 		if self.epsilon > self.epsilon_min:
 			self.epsilon *= self.epsilon_decay

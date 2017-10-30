@@ -1,11 +1,11 @@
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Flatten
 from keras.optimizers import Adam
 
 class ModelBuilder:
 
 	def __init__(self, input_dim, output_dim, lr):
-		self.input_dim = input_dim
+		self.input_dim = (1, input_dim)
 		self.output_dim = output_dim
 		self.model = None
 		self.lr = lr
@@ -13,9 +13,10 @@ class ModelBuilder:
 	def create_model(self, weights_path=None):
 
 		model = Sequential()
-		model.add(Dense(24, input_dim=self.input_dim, activation='relu'))
+		model.add(Dense(24, input_shape=self.input_dim, activation='relu'))
 		model.add(Dense(24, activation='relu'))
 		model.add(Dense(self.output_dim, activation='linear'))
+		model.add(Flatten())
 		self.model = model
 
 	def compile_model(self):
