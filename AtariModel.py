@@ -2,9 +2,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Flatten, Conv2D, Activation, Permute
 from keras.optimizers import Adam
 import keras.backend as K
-
-INPUT_SHAPE = (84, 84)
-WINDOW_LENGTH = 4
+from util import *
 
 class AtariModel:
 	def __init__(self, input_dim, output_dim, lr):

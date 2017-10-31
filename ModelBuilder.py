@@ -17,6 +17,7 @@ class ModelBuilder:
 		model.add(Dense(24, activation='relu'))
 		model.add(Dense(self.output_dim, activation='linear'))
 		model.add(Flatten())
+		print(model.summary())
 		self.model = model
 
 	def compile_model(self):
