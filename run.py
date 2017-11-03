@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 from DQNAgent import DQNAgent
 
-def main(epsilon, render=False, model_path=None, save_path=None):
+def main(epsilon, render=True, model_path=None, save_path=None):
 	env = gym.make('CartPole-v1')
 	state_size= env.observation_space.shape[0]
 	action_size = env.action_space.n
@@ -60,7 +60,7 @@ def parseArguments():
 
 	parser.add_argument("--render", dest="render",
 						help="Render Environment",
-						required = False, default='f', type=str2bool)
+						required = False, default='t', type=str2bool)
 
 	args = parser.parse_args()
 	return args
