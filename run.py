@@ -5,14 +5,13 @@ from DQNAgent import DQNAgent
 from Processor import AtariProcessor
 from util import *
 
-def main(epsilon, episodes, render=False, model_path=None, save_path=None):
+def main(epsilon, batch_size, episodes, lr=0.001, render=False, model_path=None, save_path=None):
 	env = gym.make('Pong-v0')
 	state_size= env.observation_space.shape[0]
 	action_size = env.action_space.n
 	processor = AtariProcessor()
-	agent = DQNAgent(processor, state_size, action_size, epsilon, model_path)
+	agent = DQNAgent(processor, state_size, action_size, lr, epsilon, model_path)
 
-	batch_size = 32
 	done = False
 	running_reward = None
 	reward_sum = 0
@@ -24,10 +23,19 @@ def main(epsilon, episodes, render=False, model_path=None, save_path=None):
 		while True:
 			if render:
 				env.render()
+
+			# Select action based on current state
 			action = agent.get_Act(state)
+
+			# Take step using selected action
 			next_state, reward, done, _ = env.step(action)
+
+			# Process reward and next_state for convergence
 			reward_sum += reward
+			reward = processor.process_reward(reward)
 			next_state = processor.process_observation(next_state)
+
+			#Remember the current scenario
 			agent.remember(state, action, reward, next_state, done)
 			state = next_state
 
@@ -66,10 +74,17 @@ def parseArguments():
 						help="Render Environment",
 						required = False, default='f', type=str2bool)
 
+	parser.add_argument("--batch_size", dest="batch_size",
+						help="Batch Size",
+						required = False, default=32, type=int)
+
+	parser.add_argument("--lr", dest="lr",
+						help="Learning Rate",
+						required = False, default=0.001, type=float)
+
 	args = parser.parse_args()
 	return args
 
 if __name__ == "__main__":
 	args = parseArguments()
-	print args.render
-	main(args.epsilon, args.episodes, args.render, args.load_path, args.save_path)
+	main(args.epsilon, args.batch_size, args.episodes, args.lr, args.render, args.load_path, args.save_path)

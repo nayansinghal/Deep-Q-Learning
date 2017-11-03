@@ -6,7 +6,7 @@ from AtariModel import AtariModel
 from Processor import AtariProcessor
 
 class DQNAgent:
-	def __init__(self, processor, state_size, action_size, epsilon=1.0, model_path=None):
+	def __init__(self, processor, state_size, action_size, lr=0.001, epsilon=1.0, model_path=None):
 		self.processor = processor
 		self.state_size = state_size
 		self.action_size = action_size
@@ -15,7 +15,7 @@ class DQNAgent:
 		self.epsilon = epsilon
 		self.epsilon_min = 0.1
 		self.epsilon_decay = 0.995
-		self.model = AtariModel(state_size, action_size, 0.001)
+		self.model = AtariModel(state_size, action_size, lr)
 		self.model.create_model()
 		self.model.compile_model()
 		self.model.load(model_path)
