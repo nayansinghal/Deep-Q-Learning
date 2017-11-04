@@ -1,5 +1,5 @@
-INPUT_SHAPE = (80, 80)
-WINDOW_LENGTH = 1
+INPUT_SHAPE = (84, 84)
+WINDOW_LENGTH = 4
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):

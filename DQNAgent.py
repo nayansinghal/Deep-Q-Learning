@@ -4,13 +4,14 @@ import random
 from ModelBuilder import ModelBuilder
 from AtariModel import AtariModel
 from Processor import AtariProcessor
+from Memory import Memory
 
 class DQNAgent:
 	def __init__(self, processor, state_size, action_size, lr=0.001, epsilon=1.0, model_path=None):
 		self.processor = processor
 		self.state_size = state_size
 		self.action_size = action_size
-		self.memory = deque(maxlen=2000)
+		self.memory = Memory()
 		self.gamma = 0.99
 		self.epsilon = epsilon
 		self.epsilon_min = 0.1
@@ -26,7 +27,7 @@ class DQNAgent:
 	def get_Act(self, state):
 		if np.random.rand() <= self.epsilon:
 			return random.randrange(self.action_size)
-		state = np.expand_dims(state, axis=0)
+		state = self.memory.get_recent_state(state)
 		state = np.expand_dims(state, axis=0)
 		return np.argmax(self.model.model.predict(state)[0])
 
