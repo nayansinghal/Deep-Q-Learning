@@ -36,7 +36,7 @@ def main(epsilon, batch_size, episodes, lr=0.001, render=False, model_path=None,
 			next_state = processor.process_observation(next_state)
 
 			#Remember the current scenario
-			# agent.remember(state, action, reward, next_state, done)
+			agent.remember(state, action, reward, next_state, done)
 			state = next_state
 
 			if done:
@@ -45,8 +45,8 @@ def main(epsilon, batch_size, episodes, lr=0.001, render=False, model_path=None,
 				reward_sum = 0
 				break
 
-		# if len(agent.memory) > batch_size:
-		# 	agent.replay(batch_size)
+		if len(agent.memory.memory) > batch_size:
+			agent.replay(batch_size)
 
 	if save_path is not None:
 		agent.model.save(save_path)

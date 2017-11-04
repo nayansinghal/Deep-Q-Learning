@@ -22,7 +22,9 @@ class DQNAgent:
 		self.model.load(model_path)
 
 	def remember(self, state, action, reward, next_state, done):
-		self.memory.append((state, action, reward, next_state, done))
+		self.memory.append(state)
+		next_state = self.memory.get_recent_state(next_state)
+		self.memory.memory.append((self.memory.current_state, action, reward, next_state, done))
 
 	def get_Act(self, state):
 		if np.random.rand() <= self.epsilon:
@@ -32,11 +34,11 @@ class DQNAgent:
 		return np.argmax(self.model.model.predict(state)[0])
 
 	def replay(self, batch_size):
-		minibatch = random.sample(self.memory, batch_size)
+		minibatch = random.sample(self.memory.memory, batch_size)
 
 		state, action, reward, next_state, done = zip(*minibatch)
-		state = np.expand_dims(state, axis=1)
-		next_state = np.expand_dims(next_state, axis=1)
+		next_state = np.array(next_state)
+		state = np.array(state)
 
 		target = reward + self.gamma * np.amax(self.model.model.predict(next_state), axis=1)
 		target_f = self.model.model.predict(state)
