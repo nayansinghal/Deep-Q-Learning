@@ -2,7 +2,7 @@ from collections import deque
 import numpy as np
 
 class Memory:
-	def __init__(self, limit=50000, window_length=4):
+	def __init__(self, limit=100000, window_length=4):
 		self.memory = deque(maxlen=limit)
 		self.window_length = window_length
 		self.current_state = deque(maxlen=window_length)
