@@ -15,7 +15,7 @@ class DDPG_Agent(object):
 		self.batch_size = 32  
 		self.gamma = 0.99
 		self.memory_capacity = 100000  
-		self.vision = True 
+		self.vision = False 
 		self.throttle = True
 		self.gear_change = False
 		self.action_dim = 3
@@ -34,6 +34,7 @@ class DDPG_Agent(object):
 		self.target_actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, True)
 		self.critic_net = CriticNet(self.sess, self.lrc, self.state_dim, self.action_dim, False)
 		self.target_critic_net = CriticNet(self.sess, self.lrc, self.state_dim, self.action_dim, True)
+		self.load_weights()
 		self.memory = Memory(limit=self.memory_capacity)
 		
 	def load_weights(self):
@@ -101,8 +102,8 @@ class DDPG_Agent(object):
 
 	def save_models(self):
 		print("Saving Models...")
-		self.actor_net.model.save("actormodel.h5")
-		self.critic_net.model.save_weights("criticmodel.h5")
+		self.actor_net.save("actormodel.h5")
+		self.critic_net.save("criticmodel.h5")
 		print("Models Successfully Saved...")
 
 	def remember(self, state_t, action_t, reward_t, state_t1, done):
