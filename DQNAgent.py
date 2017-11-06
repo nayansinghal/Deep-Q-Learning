@@ -22,9 +22,10 @@ class DQNAgent:
 		self.model.load(model_path)
 
 	def remember(self, state, action, reward, next_state, done):
+		curr_state = self.memory.get_recent_state(state)
 		self.memory.append(state)
 		next_state = self.memory.get_recent_state(next_state)
-		self.memory.memory.append((self.memory.current_state, action, reward, next_state, done))
+		self.memory.memory.append((curr_state, action, reward, next_state, done))
 
 	def get_Act(self, state):
 		if np.random.rand() <= self.epsilon:
