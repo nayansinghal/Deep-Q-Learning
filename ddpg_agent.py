@@ -67,6 +67,8 @@ class DDPG_Agent(object):
 		return action_t
 
 	def update_target_net(self):
+
+		# Update target actor network
 		actor_weights = self.actor_net.model.get_weights()
 		actor_target_weights = self.target_actor_net.model.get_weights()
 		for i in xrange(len(actor_weights)):
