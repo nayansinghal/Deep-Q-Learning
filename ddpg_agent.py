@@ -1,3 +1,4 @@
+import sys
 import gym
 from gym.spaces import Box, Discrete
 import numpy as np
@@ -12,17 +13,14 @@ from ou_noise import OUNoise
 
 class DDPG_Agent(object):
 
-	def __init__(self, env):
+	def __init__(self, env, experiment):
 		self.env = env
-
+		self.experiment = experiment
 		self.episodes = 150000
 		self.max_steps = env.spec.timestep_limit
 		self.batch_size = 32  
 		self.gamma = 0.99
 		self.memory_capacity = 100000  
-		#self.vision = False 
-		#self.throttle = True
-		#self.gear_change = False
 		self.action_dim = env.action_space.shape[0]
 		self.state_dim = env.observation_space.shape[0]
 		self.exploration_noise = OUNoise(self.action_dim)
@@ -34,9 +32,7 @@ class DDPG_Agent(object):
 		self.epsilon = 1
 		#config = tf.ConfigProto()
 		#config.gpu_options.allow_growth = True
-
 		self.sess = tf.Session()
-		
 		K.set_session(self.sess)
 		self.actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, False)
 		self.target_actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, True)
@@ -47,10 +43,10 @@ class DDPG_Agent(object):
 		
 	def load_weights(self):
 		try:
-			self.actor_net.load("actormodel.h5")
-			self.critic_net.load("criticmodel.h5")
-			self.target_actor_net.load("actormodel.h5")
-			self.target_critic_net.load("criticmodel.h5")
+			self.actor_net.load("cv/" + self.experiment + "/actormodel.h5")
+			self.critic_net.load("cv/" + self.experiment + "/criticmodel.h5")
+			self.target_actor_net.load("cv/" + self.experiment + "/actormodel.h5")
+			self.target_critic_net.load("cv/" + self.experiment + "/criticmodel.h5")
 			print("Weight load successfully")
 		except:
 			print("Cannot find the weight")
@@ -124,27 +120,20 @@ class DDPG_Agent(object):
 
 	def save_models(self):
 		print("Saving Models...")
-		self.actor_net.save("actormodel.h5")
-		self.critic_net.save("criticmodel.h5")
+		self.actor_net.save("cv/" + self.experiment + "/actormodel.h5")
+		self.critic_net.save("cv/" + self.experiment + "/criticmodel.h5")
 		print("Models Successfully Saved...")
 
 	def remember(self, state_t, action_t, reward_t, state_t1, done):
 		self.memory.memory.append((state_t, action_t[0], reward_t, state_t1, done))
 
 	def play(self):
-		#env = TorcsEnv(vision=self.vision, throttle=self.throttle,gear_change=self.gear_change)
-		env = self.env
-		
+		env = self.env		
 		for i in range(self.episodes):
 			#print("Episode : " + str(i))
 			total_reward = 0
-			#if np.mod(i, 3) == 0:
-			#	observ = env.reset(relaunch=True)
-			#else:
-			#	observ = env.reset()
 			observ = env.reset()
 
-			#state_t = np.hstack((observ.angle, observ.track, observ.trackPos, observ.speedX, observ.speedY,  observ.speedZ, observ.wheelSpinVel/100.0, observ.rpm))
 			for step in range(self.max_steps):
 				#env.render()
 				state_t = np.reshape(observ,[1,self.state_dim])
@@ -154,7 +143,6 @@ class DDPG_Agent(object):
 				action_t = self.get_Act(state_t)
 
 				observ, reward_t, done, info = env.step(action_t[0])
-				#state_t1 = np.hstack((observ.angle, observ.track, observ.trackPos, observ.speedX, observ.speedY, observ.speedZ, observ.wheelSpinVel/100.0, observ.rpm))
 				state_t1 = np.reshape(observ,[1,self.state_dim])
 
 				self.remember(state_t, action_t, reward_t, state_t1, done)				
@@ -177,9 +165,9 @@ class DDPG_Agent(object):
 		print("Finish.")
 
 if __name__ == '__main__':
-	experiment = 'InvertedPendulum-v1' #specify environments here
+	experiment = sys.argv[1] #'Humanoid-v1' #specify environments here
 	env = gym.make(experiment)
 	print 'environment make successfully'
-	ddpg_agent = DDPG_Agent(env)
+	ddpg_agent = DDPG_Agent(env, experiment)
 	ddpg_agent.play()
 	env.end() 
