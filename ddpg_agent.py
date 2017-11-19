@@ -71,11 +71,17 @@ class DDPG_Agent(object):
 		# Update target actor network
 		actor_weights = self.actor_net.model.get_weights()
 		actor_target_weights = self.target_actor_net.model.get_weights()
+
+		# Update target weight using discount factor
 		for i in xrange(len(actor_weights)):
 			actor_target_weights[i] = self.tau * actor_weights[i] + (1 - self.tau)* actor_target_weights[i]
 		self.target_actor_net.model.set_weights(actor_target_weights)
+
+		# Update target critic network
 		critic_weights = self.critic_net.model.get_weights()
+
 		critic_target_weights = self.target_critic_net.model.get_weights()
+		# Update target weight using discount factor
 		for i in xrange(len(critic_weights)):
 			critic_target_weights[i] = self.tau * critic_weights[i] + (1 - self.tau)* critic_target_weights[i]
 		self.target_critic_net.model.set_weights(critic_target_weights)
@@ -97,7 +103,11 @@ class DDPG_Agent(object):
 	def replay(self):
 		if(not(len(self.memory.memory)>self.batch_size)):
 			return
+
+		# Get random sample
 		batch = random.sample(self.memory.memory, self.batch_size)
+
+		# retrieve states, actions, rewards, new_states and dones from batch
 		states = np.asarray([e[0] for e in batch])
 		actions = np.asarray([e[1] for e in batch])
 		rewards = np.asarray([e[2] for e in batch])
@@ -117,10 +127,16 @@ class DDPG_Agent(object):
 				y_t[k] = rewards[k]
 			else:
 				y_t[k] = rewards[k] + self.gamma*target_q_values[k]
+
+		# Train critic network
 		self.loss += self.critic_net.model.train_on_batch([states,actions], y_t) 
+
+		# Train Actor Network
 		a_for_grad = self.actor_net.model.predict(states)
 		grads = self.critic_net.gradients(states, a_for_grad)
 		self.actor_net.train(states, grads)
+
+		# Update target network
 		self.update_target_net()
 
 	def save_models(self):
