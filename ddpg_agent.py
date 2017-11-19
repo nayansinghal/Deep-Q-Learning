@@ -8,13 +8,14 @@ from Memory import Memory
 import random
 from keras import backend as K
 import tensorflow as tf
+from ou_noise import OUNoise
 
 class DDPG_Agent(object):
 
 	def __init__(self, env):
 		self.env = env
 
-		self.episodes = 1000
+		self.episodes = 150000
 		self.max_steps = env.spec.timestep_limit
 		self.batch_size = 32  
 		self.gamma = 0.99
@@ -24,9 +25,10 @@ class DDPG_Agent(object):
 		#self.gear_change = False
 		self.action_dim = env.action_space.shape[0]
 		self.state_dim = env.observation_space.shape[0]
+		self.exploration_noise = OUNoise(self.action_dim)
 		self.tau = 0.001
-		self.lra = 0001
-		self.lrc = 0.01
+		self.lra = 0.0001
+		self.lrc = 0.001
 		self.isTrain = True
 		self.explore = 100000
 		self.epsilon = 1
@@ -57,13 +59,12 @@ class DDPG_Agent(object):
 		return theta * (mu - x) + sigma * np.random.randn(1)
 
 	def add_action_noise(self, action_t):
-		noise_t = np.zeros([1,self.action_dim])
-		noise_t[0][0] = self.isTrain * max(self.epsilon, 0) * self.noise_OU_function(action_t[0][0],  0.0 , 0.60, 0.30)
-		noise_t[0][1] = self.isTrain * max(self.epsilon, 0) * self.noise_OU_function(action_t[0][1],  0.5 , 1.00, 0.10)
-		noise_t[0][2] = self.isTrain * max(self.epsilon, 0) * self.noise_OU_function(action_t[0][2], -0.1 , 1.00, 0.05)
-		action_t[0][0] += noise_t[0][0]
-		action_t[0][1] += noise_t[0][1]
-		action_t[0][2] += noise_t[0][2]
+		noise = self.exploration_noise.noise()
+		action_t = action_t + noise
+		# noise_t = np.zeros([1,self.action_dim])
+		# for i in range(self.action_dim):
+		# 	noise_t[0][i] = self.isTrain * max(self.epsilon, 0) * self.noise_OU_function(action_t[0][i],  0.0 , 0.15, 0.30) 
+		# 	action_t[0][i] += noise_t[0][i]
 		return action_t
 
 	def update_target_net(self):
@@ -84,12 +85,12 @@ class DDPG_Agent(object):
 		#print(self.state_dim)
 		action_t = self.actor_net.model.predict(state_t)
 		action_t = self.add_action_noise(action_t)
-		if(random.random()<0.2):
-			action_t[0][0] = 1#random.uniform(-1,1)
-		if(random.random()<0.1):
-			action_t[0][1] = random.uniform(0,1)
-		if(random.random()<0.1):	
-			action_t[0][2] = random.uniform(0,1)	
+		# if(random.random()<0.2):
+		# 	action_t[0][0] = random.uniform(-1,1)
+		# if(random.random()<0.1):
+		# 	action_t[0][1] = random.uniform(0,1)
+		# if(random.random()<0.1):	
+		# 	action_t[0][2] = random.uniform(0,1)	
 		return action_t
 
 	def replay(self):
@@ -135,7 +136,7 @@ class DDPG_Agent(object):
 		env = self.env
 		
 		for i in range(self.episodes):
-			print("Episode : " + str(i))
+			#print("Episode : " + str(i))
 			total_reward = 0
 			#if np.mod(i, 3) == 0:
 			#	observ = env.reset(relaunch=True)
@@ -145,7 +146,7 @@ class DDPG_Agent(object):
 
 			#state_t = np.hstack((observ.angle, observ.track, observ.trackPos, observ.speedX, observ.speedY,  observ.speedZ, observ.wheelSpinVel/100.0, observ.rpm))
 			for step in range(self.max_steps):
-				env.render()
+				#env.render()
 				state_t = np.reshape(observ,[1,self.state_dim])
 
 				self.loss = 0
@@ -161,17 +162,17 @@ class DDPG_Agent(object):
 				state_t = state_t1
 				if(self.isTrain):
 					self.replay()
-				print("Episode", i, "Step", step, "Action", action_t, "Reward", reward_t, "Loss", self.loss)
+				#print("Episode", i, "Step", step, "Action", action_t, "Reward", reward_t, "Loss", self.loss)
 				step += 1
 				if done:
 					break
 			
-			if np.mod(i, 3) == 0 and self.isTrain:
+			if np.mod(i, 1000) == 0 and self.isTrain:
 				self.save_models()
 			
-			print("Total Reward: " + str(i) +"-th Episode  : Reward " + str(total_reward))
-			print("Total Steps : " + str(step))
-			print("")
+			print(str(i) +"-th Episode  : Reward " + str(total_reward))
+			#print("Total Steps : " + str(step))
+			#print("")
 		
 		print("Finish.")
 
@@ -182,4 +183,3 @@ if __name__ == '__main__':
 	ddpg_agent = DDPG_Agent(env)
 	ddpg_agent.play()
 	env.end() 
-		
