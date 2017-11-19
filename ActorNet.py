@@ -6,8 +6,8 @@ from keras.models import Sequential, Model
 from keras.engine.training import collect_trainable_weights
 from keras.layers import Dense, Flatten, Input, merge, Lambda
 from keras.optimizers import Adam
-import tensorflow as tf
 import keras.backend as K
+import tensorflow as tf
 
 class ActorNet(object):
 
@@ -18,6 +18,7 @@ class ActorNet(object):
 		self.action_dim = action_dim
 		self.h1units = ACTOR_NET_HIDDEN1_UNITS
 		self.h2units = ACTOR_NET_HIDDEN2_UNITS
+		
 		K.set_session(sess)
 		self.model, self.weights, self.state = self.create_model()
 		if target_mode is False:
@@ -39,10 +40,11 @@ class ActorNet(object):
 		state_in = Input(shape=[self.state_size])  
 		h1 = Dense(self.h1units, activation='relu')(state_in)
 		h2 = Dense(self.h2units, activation='relu')(h1)
-		act_steer = Dense(1,activation='tanh',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
-		act_acclr = Dense(1,activation='sigmoid',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
-		act_brake = Dense(1,activation='sigmoid',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2) 
-		act_out = merge([act_steer, act_acclr, act_brake],mode='concat')
+		act_out = Dense(self.action_dim,activation='tanh',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
+		#act_steer = Dense(1,activation='tanh',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
+		#act_acclr = Dense(1,activation='sigmoid',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
+		#act_brake = Dense(1,activation='sigmoid',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2) 
+		#act_out = merge([act_steer, act_acclr, act_brake],mode='concat')
 		model = Model(input=state_in,output=act_out)
 		#print(model.summary())
 		return model, model.trainable_weights, state_in

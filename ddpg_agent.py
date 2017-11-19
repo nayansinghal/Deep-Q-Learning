@@ -1,25 +1,29 @@
+import gym
+from gym.spaces import Box, Discrete
 import numpy as np
-from keras import backend as K
-import tensorflow as tf
-from gym_torcs import TorcsEnv
+import cv2
 from ActorNet import ActorNet
 from CriticNet import CriticNet
 from Memory import Memory
 import random
+from keras import backend as K
+import tensorflow as tf
 
 class DDPG_Agent(object):
 
-	def __init__(self):
+	def __init__(self, env):
+		self.env = env
+
 		self.episodes = 1000
-		self.max_steps = 100000
+		self.max_steps = env.spec.timestep_limit
 		self.batch_size = 32  
 		self.gamma = 0.99
 		self.memory_capacity = 100000  
-		self.vision = False 
-		self.throttle = True
-		self.gear_change = False
-		self.action_dim = 3
-		self.state_dim = 29
+		#self.vision = False 
+		#self.throttle = True
+		#self.gear_change = False
+		self.action_dim = env.action_space.shape[0]
+		self.state_dim = env.observation_space.shape[0]
 		self.tau = 0.001
 		self.lra = 0001
 		self.lrc = 0.01
@@ -28,7 +32,9 @@ class DDPG_Agent(object):
 		self.epsilon = 1
 		#config = tf.ConfigProto()
 		#config.gpu_options.allow_growth = True
+
 		self.sess = tf.Session()
+		
 		K.set_session(self.sess)
 		self.actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, False)
 		self.target_actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, True)
@@ -74,8 +80,16 @@ class DDPG_Agent(object):
 		
 	def get_Act(self, state_t):
 		action_t = np.zeros([1,self.action_dim])
-		action_t = self.actor_net.model.predict(state_t.reshape(1, state_t.shape[0]))
+		#print(state_t.shape)
+		#print(self.state_dim)
+		action_t = self.actor_net.model.predict(state_t)
 		action_t = self.add_action_noise(action_t)
+		if(random.random()<0.2):
+			action_t[0][0] = 1#random.uniform(-1,1)
+		if(random.random()<0.1):
+			action_t[0][1] = random.uniform(0,1)
+		if(random.random()<0.1):	
+			action_t[0][2] = random.uniform(0,1)	
 		return action_t
 
 	def replay(self):
@@ -88,7 +102,14 @@ class DDPG_Agent(object):
 		new_states = np.asarray([e[3] for e in batch])
 		dones = np.asarray([e[4] for e in batch])
 		y_t = np.asarray([e[1] for e in batch])
-		target_q_values = self.target_critic_net.model.predict([new_states, self.target_actor_net.model.predict(new_states)])
+		#print(new_states.shape)
+		states = np.reshape(states, (self.batch_size, self.state_dim))
+		new_states = np.reshape(new_states, (self.batch_size, self.state_dim))
+		#print(new_states.shape)
+		#raw_input()
+		temp = self.target_actor_net.model.predict(new_states)
+		#print(temp.shape)
+		target_q_values = self.target_critic_net.model.predict([new_states, temp])
 		for k in range(len(batch)):
 			if dones[k]:
 				y_t[k] = rewards[k]
@@ -110,21 +131,31 @@ class DDPG_Agent(object):
 		self.memory.memory.append((state_t, action_t[0], reward_t, state_t1, done))
 
 	def play(self):
-		env = TorcsEnv(vision=self.vision, throttle=self.throttle,gear_change=self.gear_change)
+		#env = TorcsEnv(vision=self.vision, throttle=self.throttle,gear_change=self.gear_change)
+		env = self.env
+		
 		for i in range(self.episodes):
 			print("Episode : " + str(i))
 			total_reward = 0
-			if np.mod(i, 3) == 0:
-				observ = env.reset(relaunch=True)
-			else:
-				observ = env.reset()
-			state_t = np.hstack((observ.angle, observ.track, observ.trackPos, observ.speedX, observ.speedY,  observ.speedZ, observ.wheelSpinVel/100.0, observ.rpm))
+			#if np.mod(i, 3) == 0:
+			#	observ = env.reset(relaunch=True)
+			#else:
+			#	observ = env.reset()
+			observ = env.reset()
+
+			#state_t = np.hstack((observ.angle, observ.track, observ.trackPos, observ.speedX, observ.speedY,  observ.speedZ, observ.wheelSpinVel/100.0, observ.rpm))
 			for step in range(self.max_steps):
+				env.render()
+				state_t = np.reshape(observ,[1,self.state_dim])
+
 				self.loss = 0
 				self.epsilon -= 1.0 / self.explore
 				action_t = self.get_Act(state_t)
+
 				observ, reward_t, done, info = env.step(action_t[0])
-				state_t1 = np.hstack((observ.angle, observ.track, observ.trackPos, observ.speedX, observ.speedY, observ.speedZ, observ.wheelSpinVel/100.0, observ.rpm))
+				#state_t1 = np.hstack((observ.angle, observ.track, observ.trackPos, observ.speedX, observ.speedY, observ.speedZ, observ.wheelSpinVel/100.0, observ.rpm))
+				state_t1 = np.reshape(observ,[1,self.state_dim])
+
 				self.remember(state_t, action_t, reward_t, state_t1, done)				
 				total_reward += reward_t
 				state_t = state_t1
@@ -134,14 +165,21 @@ class DDPG_Agent(object):
 				step += 1
 				if done:
 					break
+			
 			if np.mod(i, 3) == 0 and self.isTrain:
 				self.save_models()
+			
 			print("Total Reward: " + str(i) +"-th Episode  : Reward " + str(total_reward))
 			print("Total Steps : " + str(step))
 			print("")
-		env.end() 
+		
 		print("Finish.")
 
 if __name__ == '__main__':
-	ddpg_agent = DDPG_Agent()
+	experiment = 'InvertedPendulum-v1' #specify environments here
+	env = gym.make(experiment)
+	print 'environment make successfully'
+	ddpg_agent = DDPG_Agent(env)
 	ddpg_agent.play()
+	env.end() 
+		
