@@ -8,9 +8,12 @@ class Memory:
 		self.current_state = deque(maxlen=window_length)
 
 	def append(self, obs):
+		obs = obs.reshape(np.shape(obs)[1])
 		self.current_state.append(obs)
 
 	def get_recent_state(self, curr_obs):
+		
+		curr_obs = curr_obs.reshape(np.shape(curr_obs)[1])
 		state = [curr_obs]
 		idx = len(self.current_state) - 1
 

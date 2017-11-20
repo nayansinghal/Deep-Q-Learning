@@ -10,10 +10,12 @@ import random
 from keras import backend as K
 import tensorflow as tf
 from ou_noise import OUNoise
+from util import *
+import argparse
 
 class DDPG_Agent(object):
 
-	def __init__(self, env, experiment):
+	def __init__(self, env, experiment, isRecurrent=False):
 		self.env = env
 		self.experiment = experiment
 		self.episodes = 150000
@@ -30,14 +32,15 @@ class DDPG_Agent(object):
 		self.isTrain = True
 		self.explore = 100000
 		self.epsilon = 1
+		self.isRecurrent = isRecurrent
 		#config = tf.ConfigProto()
 		#config.gpu_options.allow_growth = True
 		self.sess = tf.Session()
 		K.set_session(self.sess)
-		self.actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, False)
-		self.target_actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, True)
-		self.critic_net = CriticNet(self.sess, self.lrc, self.state_dim, self.action_dim, False)
-		self.target_critic_net = CriticNet(self.sess, self.lrc, self.state_dim, self.action_dim, True)
+		self.actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, False, self.isRecurrent)
+		self.target_actor_net = ActorNet(self.sess, self.lra, self.state_dim, self.action_dim, True, self.isRecurrent)
+		self.critic_net = CriticNet(self.sess, self.lrc, self.state_dim, self.action_dim, False, self.isRecurrent)
+		self.target_critic_net = CriticNet(self.sess, self.lrc, self.state_dim, self.action_dim, True, self.isRecurrent)
 		self.load_weights()
 		self.memory = Memory(limit=self.memory_capacity)
 		
@@ -84,11 +87,17 @@ class DDPG_Agent(object):
 		self.target_critic_net.model.set_weights(critic_target_weights)
 		
 	def get_Act(self, state_t):
+
 		action_t = np.zeros([1,self.action_dim])
-		#print(state_t.shape)
-		#print(self.state_dim)
-		action_t = self.actor_net.model.predict(state_t)
-		action_t = self.add_action_noise(action_t)
+
+		if self.isRecurrent:
+			state_t = self.memory.get_recent_state(state_t)
+			state_t = np.expand_dims(state_t, axis=0)
+			action_t = self.actor_net.model.predict(state_t)
+			action_t = self.add_action_noise(action_t)[0]
+		else:
+			action_t = self.actor_net.model.predict(state_t)
+			action_t = self.add_action_noise(action_t)
 		# if(random.random()<0.2):
 		# 	action_t[0][0] = random.uniform(-1,1)
 		# if(random.random()<0.1):
@@ -111,9 +120,13 @@ class DDPG_Agent(object):
 		new_states = np.asarray([e[3] for e in batch])
 		dones = np.asarray([e[4] for e in batch])
 		y_t = np.asarray([e[1] for e in batch])
-		#print(new_states.shape)
-		states = np.reshape(states, (self.batch_size, self.state_dim))
-		new_states = np.reshape(new_states, (self.batch_size, self.state_dim))
+		
+		if self.isRecurrent:
+			states = np.reshape(states, (self.batch_size, WINDOW_LENGTH, self.state_dim))
+			new_states = np.reshape(new_states, (self.batch_size, WINDOW_LENGTH, self.state_dim))
+		else:
+			states = np.reshape(states, (self.batch_size, self.state_dim))
+			new_states = np.reshape(new_states, (self.batch_size, self.state_dim))
 		#print(new_states.shape)
 		#raw_input()
 		temp = self.target_actor_net.model.predict(new_states)
@@ -143,7 +156,13 @@ class DDPG_Agent(object):
 		print("Models Successfully Saved...")
 
 	def remember(self, state_t, action_t, reward_t, state_t1, done):
-		self.memory.memory.append((state_t, action_t[0], reward_t, state_t1, done))
+		if self.isRecurrent:
+			temp_t = self.memory.get_recent_state(state_t)
+			self.memory.append(state_t)
+			state_t1 = self.memory.get_recent_state(state_t1)
+			self.memory.memory.append((temp_t, action_t, reward_t, state_t1, done))
+		else:
+			self.memory.memory.append((state_t, action_t[0], reward_t, state_t1, done))
 
 	def play(self):
 		env = self.env		
@@ -168,7 +187,7 @@ class DDPG_Agent(object):
 				state_t = state_t1
 				if(self.isTrain):
 					self.replay()
-				#print("Episode", i, "Step", step, "Action", action_t, "Reward", reward_t, "Loss", self.loss)
+				# com
 				step += 1
 				if done:
 					break
@@ -182,10 +201,23 @@ class DDPG_Agent(object):
 		
 		print("Finish.")
 
+def parseArguments():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--env", dest="env",
+						help="Environment",
+						required = True, default=None, type=str)
+
+	parser.add_argument("--rec", dest="rec",
+						help="Recurrent Network",
+						required = False, default='f', type=str2bool)
+
+	args = parser.parse_args()
+	return args
+
 if __name__ == '__main__':
-	experiment = sys.argv[1] #'Humanoid-v1' #specify environments here
-	env = gym.make(experiment)
+	args = parseArguments()
+	env = gym.make(args.env)
 	print 'environment make successfully'
-	ddpg_agent = DDPG_Agent(env, experiment)
+	ddpg_agent = DDPG_Agent(env, args.env, args.rec)
 	ddpg_agent.play()
 	env.end() 

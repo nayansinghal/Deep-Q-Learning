@@ -5,16 +5,18 @@ from keras.models import Sequential, Model
 from keras.engine.training import collect_trainable_weights
 from keras.layers import Dense, Flatten, Input, merge, Lambda
 from keras.optimizers import Adam
+from keras.layers import LSTM
 import tensorflow as tf
 import keras.backend as K
 
 class CriticNet(object):
 
-	def __init__(self, sess, lr, state_size, action_dim, target_mode):
+	def __init__(self, sess, lr, state_size, action_dim, target_mode, isRecurrent=True):
 		self.sess = sess
 		self.lr = lr
 		self.state_size = state_size
 		self.action_dim = action_dim
+		self.isRecurrent = isRecurrent
 		self.h1units = CRITIC_NET_HIDDEN1_UNITS
 		self.h2units = CRITIC_NET_HIDDEN2_UNITS
 		K.set_session(sess)
@@ -31,16 +33,22 @@ class CriticNet(object):
 		})[0]
 
 	def create_model(self):
-		state_input = Input(shape=[self.state_size])  
-		action_input = Input(shape=[self.action_dim],name='action2')   
-		w1 = Dense(self.h1units, activation='relu')(state_input)
-		a1 = Dense(self.h2units, activation='linear')(action_input) 
-		h1 = Dense(self.h2units, activation='linear')(w1)
+
+		if self.isRecurrent:
+			state_input = Input(shape=(WINDOW_LENGTH, self.state_size))  
+			w1 = LSTM(self.h1units)(state_input)
+		else:
+			state_input = Input(shape=[self.state_size])
+			w1 = Dense(self.h1units, activation='relu')(state_input)
+
+		action_input = Input(shape=[self.action_dim],name='action2')
+		a1 = Dense(self.h2units, activation='linear')(action_input)
+		h1 = Dense(self.h2units, activation='linear')(w1) 
 		h2 = merge([h1,a1],mode='sum')    
 		h3 = Dense(self.h2units, activation='relu')(h2)
 		q_val = Dense(self.action_dim,activation='linear')(h3)   
 		model = Model(input=[state_input,action_input],output=q_val)
-		#print(model.summary())
+		# print(model.summary())
 		return model, action_input, state_input
 
 	def compile_model(self):

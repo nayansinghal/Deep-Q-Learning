@@ -6,16 +6,18 @@ from keras.models import Sequential, Model
 from keras.engine.training import collect_trainable_weights
 from keras.layers import Dense, Flatten, Input, merge, Lambda
 from keras.optimizers import Adam
+from keras.layers import LSTM
 import keras.backend as K
 import tensorflow as tf
 
 class ActorNet(object):
 
-	def __init__(self, sess, lr, state_size, action_dim, target_mode):
+	def __init__(self, sess, lr, state_size, action_dim, target_mode, isRecurrent=True):
 		self.sess = sess
 		self.lr = lr
 		self.state_size = state_size
 		self.action_dim = action_dim
+		self.isRecurrent = isRecurrent
 		self.h1units = ACTOR_NET_HIDDEN1_UNITS
 		self.h2units = ACTOR_NET_HIDDEN2_UNITS
 		
@@ -37,16 +39,18 @@ class ActorNet(object):
 		})
 
 	def create_model(self):
-		state_in = Input(shape=[self.state_size])  
-		h1 = Dense(self.h1units, activation='relu')(state_in)
+
+		if self.isRecurrent:
+			state_in = Input(shape=(WINDOW_LENGTH, self.state_size))
+			h1 = LSTM(self.h1units)(state_in)
+		else:
+			state_in = Input(shape=[self.state_size])  
+			h1 = Dense(self.h1units, activation='relu')(state_in)
+			
 		h2 = Dense(self.h2units, activation='relu')(h1)
 		act_out = Dense(self.action_dim,activation='tanh',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
-		#act_steer = Dense(1,activation='tanh',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
-		#act_acclr = Dense(1,activation='sigmoid',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2)
-		#act_brake = Dense(1,activation='sigmoid',init=lambda shape, name: normal(shape, scale=1e-4, name=name))(h2) 
-		#act_out = merge([act_steer, act_acclr, act_brake],mode='concat')
 		model = Model(input=state_in,output=act_out)
-		#print(model.summary())
+		print(model.summary())
 		return model, model.trainable_weights, state_in
 
 	def compile_model(self):
